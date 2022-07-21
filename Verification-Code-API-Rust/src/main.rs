@@ -6,6 +6,8 @@ use std::result;
 use rand::Rng;
 use rand::thread_rng;
 
+mod code;
+
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
@@ -78,7 +80,7 @@ fn send_get_response(result: &Result<HashMap<String, String>, String>){
 }
 
 fn generateCode(hashmap: &HashMap<String, String>){
-    randomCodeGenerator()
+    randomCodeGenerator();
 }
 fn randomCodeGenerator(){
     for i in 0..5{
