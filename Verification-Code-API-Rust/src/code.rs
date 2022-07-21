@@ -1,5 +1,6 @@
+#[derive(Debug)]
 pub(crate) struct Code{
-    codeVal: String,
-    name: String,
-    email: String
+    pub codeVal: String,
+    pub name: String,
+    pub email: String
 }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::hash_map;
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
@@ -73,20 +74,37 @@ fn get_parameters<'a>(url: &'a str, arr: &'a Vec<String>) -> Result<HashMap<Stri
 }
 
 fn send_get_response(result: &Result<HashMap<String, String>, String>){
-    match result {
+    let a = match result {
         Ok(result) => generateCode(&result),   
-        Err(_) => println!("erro!")
+        Err(_) => Err("stringue".to_string())
     };
+    match a {
+        Ok(b) => println!("{:?}", b),
+        Err(_) => println!("qqcoisa")
+    }
 }
 
-fn generateCode(hashmap: &HashMap<String, String>){
-    randomCodeGenerator();
+fn generateCode(hashmap: &HashMap<String, String>) -> Result<code::Code, String>{
+    let code: String = randomCodeGenerator();
+    if let Some(name) = hashmap.get("name"){
+        if let Some(email) = hashmap.get("email"){
+            return Ok(code::Code{
+                codeVal: code,
+                name: name.to_owned(),
+                email: email.to_owned()  
+            });
+        }
+    }
+    return Err(String::from("teste"));
 }
-fn randomCodeGenerator(){
+fn randomCodeGenerator() -> String{
+    let mut code = String::from("");
     for i in 0..5{
         let mut t = thread_rng().gen::<u8>();
         if t > 9 {
             t = t%9;
-        }        
-    }    
+        }
+        code.push((t+48) as char);
+    } 
+    return code;
 }
