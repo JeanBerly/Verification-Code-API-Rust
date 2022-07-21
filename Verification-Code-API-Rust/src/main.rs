@@ -51,13 +51,13 @@ fn get_parameters<'a>(url: &'a str) -> Result<HashMap<String, String>, String> {
     }
     let split: Vec<&str> = split[1].split(" ").collect();
     let split: Vec<&str> = split[0].split("&").collect();
-    if split.len() != 2 {
-        return Err("Foi passado a quantidade de parâmetros errada.".to_string());
+    for parameter in split {
+        let parameter: Vec<&str> = parameter.split("=").collect();
+        parameters.insert(parameter[0].to_string(), parameter[1].to_string());
     }
-    let first_parameter: Vec<&str> = split[0].split("=").collect();
-    let second_parameter: Vec<&str> = split[1].split("=").collect();
-    parameters.insert(first_parameter[0].to_string(), first_parameter[1].to_string());
-    parameters.insert(second_parameter[0].to_string(), second_parameter[1].to_string());
+    if parameters.len() != 2 {
+        return Err("Foi passado o número errado de parâmetros.");
+    }
     println!("Os parametros são: {:?}", parameters);
     return Ok(parameters);
 }
