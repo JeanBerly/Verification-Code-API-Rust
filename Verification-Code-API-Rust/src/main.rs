@@ -1,13 +1,11 @@
 use std::collections::HashMap;
-use std::collections::hash_map;
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
-use std::result;
 use rand::Rng;
 use rand::thread_rng;
-
-mod code;
+use code::VerificationCode;
+pub mod code;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
@@ -43,7 +41,10 @@ fn handle_get(buffer: &[u8; 1024]) -> Result<String, String>{
         }
         first_line.push(*i as char);
     }
-    send_get_response(&get_parameters(&first_line, &vec!["name".to_string(), "email".to_string()]));
+    match get_parameters(&first_line, &vec!["name".to_string(), "email".to_string()]){
+        Ok(param) => (send_get_response(&Ok(param))),
+        Err(err) => println!("ERRO: {}", err)
+    };
     return Ok("safe".to_string());
 }
 fn get_parameters<'a>(url: &'a str, arr: &'a Vec<String>) -> Result<HashMap<String, String>, String> {
@@ -65,41 +66,39 @@ fn get_parameters<'a>(url: &'a str, arr: &'a Vec<String>) -> Result<HashMap<Stri
             break;
         }
     }
-    println!("{:?}", parameters);
     if parameters.len() != 2 {
         return Err("Foi passado o número errado de parâmetros.".to_string());
     }
-    println!("Os parametros são: {:?}", parameters);
     return Ok(parameters);
 }
 
 fn send_get_response(result: &Result<HashMap<String, String>, String>){
-    let a = match result {
-        Ok(result) => generateCode(&result),   
-        Err(_) => Err("stringue".to_string())
+    let response = match result {
+        Ok(result) => generate_code(&result),   
+        Err(err) => Err(err.to_owned())
     };
-    match a {
+    match response {
         Ok(b) => println!("{:?}", b),
-        Err(_) => println!("qqcoisa")
+        Err(err) => println!("Erro: {}", err)
     }
 }
 
-fn generateCode(hashmap: &HashMap<String, String>) -> Result<code::Code, String>{
-    let code: String = randomCodeGenerator();
+fn generate_code(hashmap: &HashMap<String, String>) -> Result<VerificationCode, String>{
+    let code: String = random_code_generator();
     if let Some(name) = hashmap.get("name"){
         if let Some(email) = hashmap.get("email"){
-            return Ok(code::Code{
-                codeVal: code,
+            return Ok(VerificationCode{
+                code: code,
                 name: name.to_owned(),
                 email: email.to_owned()  
             });
         }
     }
-    return Err(String::from("teste"));
+    return Err(String::from("Erro"));
 }
-fn randomCodeGenerator() -> String{
+fn random_code_generator() -> String{
     let mut code = String::from("");
-    for i in 0..5{
+    for _i in 0..5{
         let mut t = thread_rng().gen::<u8>();
         if t > 9 {
             t = t%9;
