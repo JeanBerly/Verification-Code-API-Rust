@@ -20,20 +20,39 @@ fn main() {
 fn handle_connection(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
     stream.read(&mut buffer).unwrap();
-    let _a = match handle_request(&mut buffer) {
-            Ok(_response) => String::from("ok"),
-            Err(_response) => String::from("funcao que retorna o erro pro cliente"),
-    };
+    let res = handle_request(&mut buffer);
+    if let Err(ref e) = res {
+        let status_line = "HTTP/1.1 404 NOT FOUND";
+        let contents = format!("Erro: {}", e);
+        let response = format!(
+            "{}\r\nContent-Length: {}\r\n\r\n{}",
+            status_line,
+            contents.len(),
+            contents
+        );
+        stream.write(response.as_bytes()).unwrap();
+    }
+    if let Ok(ok) = res {
+        let status_line = "HTTP/1.1 200 OK";
+        let contents = format!("code: {}", ok.code);
+        let response = format!(
+            "{}\r\nContent-Length: {}\r\n\r\n{}",
+            status_line,
+            contents.len(),
+            contents
+        );
+        stream.write(response.as_bytes()).unwrap();
+    }
 }
-fn handle_request(buffer: &mut [u8; 1024]) -> Result<String, String>{
+fn handle_request(buffer: &mut [u8; 1024]) -> Result<VerificationCode, String>{
     let get = b"GET";
     if buffer.starts_with(get) {
         return handle_get(&buffer);
     }
-    let resposta = String::from("Not enough parameters");
+    let resposta = String::from("Only get request");
     return Err(resposta);
 }
-fn handle_get(buffer: &[u8; 1024]) -> Result<String, String>{
+fn handle_get(buffer: &[u8; 1024]) -> Result<VerificationCode, String>{
     let mut first_line = String::from("");
     for i in buffer {
         if *i == b'\n' {
@@ -42,10 +61,9 @@ fn handle_get(buffer: &[u8; 1024]) -> Result<String, String>{
         first_line.push(*i as char);
     }
     match get_parameters(&first_line, &vec!["name".to_string(), "email".to_string()]){
-        Ok(param) => (send_get_response(&Ok(param))),
-        Err(err) => println!("ERRO: {}", err)
+        Ok(param) => return generate_get_response(&Ok(param)),
+        Err(err) => return Err(err)
     };
-    return Ok("safe".to_string());
 }
 fn get_parameters<'a>(url: &'a str, arr: &'a Vec<String>) -> Result<HashMap<String, String>, String> {
     let mut parameters = HashMap::new();
@@ -72,15 +90,11 @@ fn get_parameters<'a>(url: &'a str, arr: &'a Vec<String>) -> Result<HashMap<Stri
     return Ok(parameters);
 }
 
-fn send_get_response(result: &Result<HashMap<String, String>, String>){
-    let response = match result {
-        Ok(result) => generate_code(&result),   
-        Err(err) => Err(err.to_owned())
+fn generate_get_response(result: &Result<HashMap<String, String>, String>) -> Result<VerificationCode, String>{
+    match result {
+        Ok(param) => return generate_code(param),
+        Err(err) => return Err(err.to_owned())
     };
-    match response {
-        Ok(b) => println!("{:?}", b),
-        Err(err) => println!("Erro: {}", err)
-    }
 }
 
 fn generate_code(hashmap: &HashMap<String, String>) -> Result<VerificationCode, String>{
@@ -94,7 +108,7 @@ fn generate_code(hashmap: &HashMap<String, String>) -> Result<VerificationCode, 
             });
         }
     }
-    return Err(String::from("Erro"));
+    return Err(String::from("Erro ao gerar código"));
 }
 fn random_code_generator() -> String{
     let mut code = String::from("");
