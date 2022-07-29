@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
@@ -14,7 +14,7 @@ fn main() {
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
-        let res = handle_connection(stream);
+        let res = handle_connection(stream, &mut codes);
         // if let Err(ref e) = res {
         //     println!("{}", e);
         // }   
@@ -24,7 +24,7 @@ fn main() {
     }
 }
 
-fn handle_connection(mut stream: TcpStream, ) -> Result<VerificationCode, String> {
+fn handle_connection(mut stream: TcpStream, codes: &mut HashMap<String, VerificationCode>) -> Result<VerificationCode, String> {
     let mut buffer = [0; 1024];
     stream.read(&mut buffer).unwrap();
     let res = handle_request(&mut buffer);
@@ -41,6 +41,18 @@ fn handle_connection(mut stream: TcpStream, ) -> Result<VerificationCode, String
         return Err(e.to_string());
     }
     if let Ok(ok) = res {
+        if exists_valid_existent_code(codes, &ok.email) {
+            let status_line = "HTTP/1.1 404 NOT FOUND";
+            let contents = format!("Erro: Já existe um código válido",);
+            let response = format!(
+                "{}\r\nContent-Length: {}\r\n\r\n{}",
+                status_line,
+                contents.len(),
+                contents
+            );
+            stream.write(response.as_bytes()).unwrap();
+            return Err(contents.to_string());
+        }
         let status_line = "HTTP/1.1 200 OK";
         let contents = format!("code: {}, email: {}, name: {}", ok.code, ok.email, ok.name);
         let response = format!(
@@ -50,15 +62,20 @@ fn handle_connection(mut stream: TcpStream, ) -> Result<VerificationCode, String
             contents
         );
         stream.write(response.as_bytes()).unwrap();
+        codes.insert(ok.email.to_string(), VerificationCode{code: ok.code.to_owned(), name: ok.name.to_owned(), email: ok.email.to_owned(), emission_time: ok.emission_time});
         return Ok(ok);
     }
     return Err("fodase".to_string());
 }
-// fn verify_valid_code(codes: &HashMap<String, VerificationCode>, email: &str) -> bool{
-//     if (codes.contains_key(&email)){
-//         if ()
-//     }
-// }
+fn exists_valid_existent_code(codes: &HashMap<String, VerificationCode>, email: &str) -> bool{
+    if let Some(code) = codes.get(&email.to_owned()){
+        if (code.emission_time.elapsed().unwrap() > Duration::from_secs(10)){
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
 fn handle_request(buffer: &mut [u8; 1024]) -> Result<VerificationCode, String>{
     let get = b"GET";
     if buffer.starts_with(get) {
