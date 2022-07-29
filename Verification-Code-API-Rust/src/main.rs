@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::SystemTime;
 use std::io::prelude::*;
 use std::net::TcpListener;
 use std::net::TcpStream;
@@ -9,15 +10,21 @@ pub mod code;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-
+    let mut codes: HashMap<String, VerificationCode> = HashMap::new();
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
-        handle_connection(stream);
+        let res = handle_connection(stream);
+        // if let Err(ref e) = res {
+        //     println!("{}", e);
+        // }   
+        // if let Ok(ok) = res {
+        //     codes
+        // }
     }
 }
 
-fn handle_connection(mut stream: TcpStream) {
+fn handle_connection(mut stream: TcpStream, ) -> Result<VerificationCode, String> {
     let mut buffer = [0; 1024];
     stream.read(&mut buffer).unwrap();
     let res = handle_request(&mut buffer);
@@ -31,10 +38,11 @@ fn handle_connection(mut stream: TcpStream) {
             contents
         );
         stream.write(response.as_bytes()).unwrap();
+        return Err(e.to_string());
     }
     if let Ok(ok) = res {
         let status_line = "HTTP/1.1 200 OK";
-        let contents = format!("code: {}", ok.code);
+        let contents = format!("code: {}, email: {}, name: {}", ok.code, ok.email, ok.name);
         let response = format!(
             "{}\r\nContent-Length: {}\r\n\r\n{}",
             status_line,
@@ -42,8 +50,15 @@ fn handle_connection(mut stream: TcpStream) {
             contents
         );
         stream.write(response.as_bytes()).unwrap();
+        return Ok(ok);
     }
+    return Err("fodase".to_string());
 }
+// fn verify_valid_code(codes: &HashMap<String, VerificationCode>, email: &str) -> bool{
+//     if (codes.contains_key(&email)){
+//         if ()
+//     }
+// }
 fn handle_request(buffer: &mut [u8; 1024]) -> Result<VerificationCode, String>{
     let get = b"GET";
     if buffer.starts_with(get) {
@@ -104,7 +119,8 @@ fn generate_code(hashmap: &HashMap<String, String>) -> Result<VerificationCode, 
             return Ok(VerificationCode{
                 code: code,
                 name: name.to_owned(),
-                email: email.to_owned()  
+                email: email.to_owned(),
+                emission_time: SystemTime::now()
             });
         }
     }
